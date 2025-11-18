@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Orbit | Centro de Comando</title>
     
     <!-- Tailwind CSS -->
@@ -48,6 +48,8 @@
             background-color: #F9FAFB;
             color: #1C1C1C;
             -webkit-font-smoothing: antialiased;
+            /* Prevent iOS tap highlight */
+            -webkit-tap-highlight-color: transparent;
         }
         
         /* Custom Scrollbar */
@@ -71,26 +73,12 @@
             background-color: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(8px);
         }
-
-        /* Hide default date picker icon to use custom one */
-        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-            background: transparent;
-            bottom: 0;
-            color: transparent;
-            cursor: pointer;
-            height: auto;
-            left: 0;
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: auto;
-        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col selection:bg-accent selection:text-white">
 
     <!-- Header -->
-    <header class="pt-10 pb-8 px-6 md:px-12 max-w-7xl mx-auto w-full flex justify-between items-center fade-in">
+    <header class="pt-10 pb-6 px-6 md:px-12 max-w-7xl mx-auto w-full flex justify-between items-center fade-in">
         <div>
             <div class="flex items-center gap-2 mb-1">
                 <p class="text-secondary text-sm tracking-widest uppercase font-medium" id="date-display">HOY</p>
@@ -102,23 +90,35 @@
             <h1 class="font-serif text-4xl md:text-5xl font-bold text-primary tracking-tight">Orbit.</h1>
         </div>
         
-        <!-- Data Controls -->
+        <!-- Data Controls (Mobile Optimized) -->
         <div class="flex gap-3">
-            <button onclick="downloadBackup()" class="group flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-secondary hover:border-accent hover:text-primary transition-all shadow-sm">
+            <button onclick="downloadBackup()" class="group flex items-center justify-center w-10 h-10 md:w-auto md:px-4 md:h-10 bg-white border border-gray-200 rounded-full text-sm font-medium text-secondary hover:border-accent hover:text-primary transition-all shadow-sm active:scale-95" title="Guardar respaldo">
                 <i class="ph ph-download-simple text-lg"></i>
-                <span class="hidden md:inline">Guardar Datos</span>
+                <span class="hidden md:inline ml-2">Guardar</span>
             </button>
             
-            <label class="group flex items-center gap-2 px-4 py-2 bg-primary border border-primary rounded-full text-sm font-medium text-white hover:bg-gray-800 transition-all shadow-sm cursor-pointer">
+            <label class="group flex items-center justify-center w-10 h-10 md:w-auto md:px-4 md:h-10 bg-primary border border-primary rounded-full text-sm font-medium text-white hover:bg-gray-800 transition-all shadow-sm cursor-pointer active:scale-95" title="Restaurar respaldo">
                 <i class="ph ph-upload-simple text-lg"></i>
-                <span class="hidden md:inline">Restaurar</span>
+                <span class="hidden md:inline ml-2">Restaurar</span>
                 <input type="file" id="backup-file" class="hidden" accept=".json" onchange="loadBackup(this)">
             </label>
         </div>
     </header>
 
+    <!-- Focus Section (Upcoming) -->
+    <section id="focus-section" class="px-6 md:px-12 mb-8 max-w-7xl mx-auto w-full hidden fade-in">
+        <div class="flex items-center gap-2 mb-4">
+            <i class="ph-fill ph-fire text-rose-500"></i>
+            <h3 class="text-sm font-bold uppercase tracking-widest text-primary">En Foco (Próximas)</h3>
+        </div>
+        <div id="focus-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <!-- Urgent cards injected here -->
+        </div>
+    </section>
+
     <!-- Main Grid -->
     <main class="flex-grow px-6 md:px-12 pb-12 max-w-7xl mx-auto w-full">
+        <h3 class="text-sm font-bold uppercase tracking-widest text-gray-400 mb-4 pl-1">Categorías</h3>
         <div id="categories-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Cards injected by JS -->
         </div>
@@ -128,21 +128,22 @@
     <div id="task-modal" class="fixed inset-0 z-50 hidden">
         <div class="absolute inset-0 modal-overlay transition-opacity opacity-0" id="modal-bg" onclick="closeModal()"></div>
         
+        <!-- Modal Container: Full width on mobile, 500px on Desktop -->
         <div class="absolute right-0 top-0 h-full w-full md:w-[500px] bg-surface shadow-2xl transform translate-x-full transition-transform duration-300 ease-out flex flex-col border-l border-gray-100" id="modal-content">
             
             <!-- Modal Header -->
-            <div class="p-8 border-b border-gray-100 flex justify-between items-start bg-white z-10">
+            <div class="p-6 md:p-8 border-b border-gray-100 flex justify-between items-start bg-white z-10 shrink-0">
                 <div>
                     <span id="modal-category-subtitle" class="text-xs font-bold tracking-widest text-accent uppercase">PROYECTO</span>
-                    <h2 id="modal-category-title" class="font-serif text-3xl font-bold mt-1 text-primary">Título</h2>
+                    <h2 id="modal-category-title" class="font-serif text-2xl md:text-3xl font-bold mt-1 text-primary">Título</h2>
                 </div>
-                <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-secondary">
+                <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-full transition-colors text-secondary active:bg-gray-200">
                     <i class="ph ph-x text-xl"></i>
                 </button>
             </div>
 
-            <!-- Task List -->
-            <div class="flex-grow overflow-y-auto p-8 bg-white">
+            <!-- Task List (Scrollable) -->
+            <div class="flex-grow overflow-y-auto p-6 md:p-8 bg-white">
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-sm font-medium text-secondary">Progreso</span>
                     <span id="modal-progress-text" class="text-sm font-bold text-primary">0%</span>
@@ -161,26 +162,36 @@
                 </div>
             </div>
 
-            <!-- Add Task Footer -->
-            <div class="p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20">
+            <!-- Add Task Footer (Sticky Bottom) -->
+            <div class="p-4 md:p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] z-20 shrink-0 safe-pb">
                 <form onsubmit="addTask(event)" class="flex flex-col gap-3">
+                    <!-- Input Area -->
                     <div class="relative flex items-center">
-                        <input type="text" id="new-task-input" placeholder="Nueva tarea..." class="w-full bg-gray-50 border border-transparent rounded-xl py-4 pl-5 pr-32 shadow-sm focus:bg-white focus:border-accent/50 focus:ring-2 focus:ring-accent/20 outline-none text-primary placeholder-gray-400 transition-all">
-                        
-                        <!-- Date Picker Trigger -->
-                        <div class="absolute right-14 top-1/2 -translate-y-1/2">
-                            <div class="relative group">
-                                <i class="ph ph-calendar-plus text-xl text-gray-400 group-hover:text-accent transition-colors cursor-pointer z-10"></i>
-                                <input type="datetime-local" id="task-date-picker" class="absolute inset-0 opacity-0 cursor-pointer w-8 h-8">
-                            </div>
-                        </div>
-
-                        <button type="submit" class="absolute right-2 p-2 bg-primary text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md">
+                        <input type="text" id="new-task-input" placeholder="Nueva tarea..." class="w-full bg-gray-50 border border-transparent rounded-xl py-3 md:py-4 pl-5 pr-14 shadow-sm focus:bg-white focus:border-accent/50 focus:ring-2 focus:ring-accent/20 outline-none text-primary placeholder-gray-400 transition-all text-base">
+                        <button type="submit" class="absolute right-2 p-2 bg-primary text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md active:scale-95">
                             <i class="ph ph-arrow-right font-bold"></i>
                         </button>
                     </div>
-                    <div id="selected-date-display" class="text-xs text-accent hidden pl-2">
-                        <i class="ph ph-clock mr-1"></i> <span id="date-text"></span>
+
+                    <!-- Smart Date Chips (Scrollable on tiny screens) -->
+                    <div class="flex overflow-x-auto pb-1 gap-2 items-center no-scrollbar">
+                        <button type="button" onclick="setQuickDate('today_eve')" class="whitespace-nowrap px-3 py-1.5 rounded-lg bg-gray-50 text-xs font-medium text-gray-600 hover:bg-accent/10 hover:text-accent active:bg-accent/20 transition-colors border border-gray-100">
+                            Hoy Tarde
+                        </button>
+                        <button type="button" onclick="setQuickDate('tomorrow_mor')" class="whitespace-nowrap px-3 py-1.5 rounded-lg bg-gray-50 text-xs font-medium text-gray-600 hover:bg-accent/10 hover:text-accent active:bg-accent/20 transition-colors border border-gray-100">
+                            Mañana
+                        </button>
+                        <button type="button" onclick="setQuickDate('friday')" class="whitespace-nowrap px-3 py-1.5 rounded-lg bg-gray-50 text-xs font-medium text-gray-600 hover:bg-accent/10 hover:text-accent active:bg-accent/20 transition-colors border border-gray-100">
+                            Viernes
+                        </button>
+                        
+                        <div class="relative ml-auto shrink-0">
+                            <input type="datetime-local" id="task-date-picker" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10">
+                            <button type="button" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-50 text-xs font-medium text-gray-600 hover:bg-gray-100 border border-gray-100 whitespace-nowrap">
+                                <i class="ph ph-calendar text-lg"></i>
+                                <span id="custom-date-label">Elegir...</span>
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -188,7 +199,7 @@
     </div>
 
     <script>
-        // --- Data Structure ---
+        // --- Data & Config ---
         const defaultCategories = [
             { id: 1, title: "Universidad", icon: "student", color: "text-blue-900", bg: "bg-blue-50" },
             { id: 2, title: "Armando", icon: "user", color: "text-emerald-900", bg: "bg-emerald-50" },
@@ -199,135 +210,139 @@
             { id: 7, title: "Otros", icon: "dots-three-circle", color: "text-gray-900", bg: "bg-gray-50" }
         ];
 
-        let appData = {
-            tasks: {} // Format: { categoryId: [ { id, text, done, dueDate: ISOString, notified: boolean } ] }
-        };
-
+        let appData = { tasks: {} };
         let currentCategoryId = null;
+        let editingTaskId = null; 
 
         // --- Initialization ---
         function init() {
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             document.getElementById('date-display').textContent = new Date().toLocaleDateString('es-ES', options);
 
-            const savedData = localStorage.getItem('orbitAppData_v2');
+            const savedData = localStorage.getItem('orbitAppData_v3');
             if (savedData) {
                 appData = JSON.parse(savedData);
+            } else {
+                const v2Data = localStorage.getItem('orbitAppData_v2');
+                if(v2Data) appData = JSON.parse(v2Data);
             }
 
             renderDashboard();
-            
-            // Update date display when picker changes
-            document.getElementById('task-date-picker').addEventListener('change', function(e) {
-                const display = document.getElementById('selected-date-display');
-                const text = document.getElementById('date-text');
-                if(this.value) {
-                    const date = new Date(this.value);
-                    text.textContent = date.toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'});
-                    display.classList.remove('hidden');
-                } else {
-                    display.classList.add('hidden');
-                }
-            });
+            setupDatePickerListener();
 
-            // Start notification checker
-            setInterval(checkDeadlines, 60000); // Check every minute
-            checkDeadlines(); // Check immediately on load
-            
+            // Background checks
+            setInterval(checkDeadlines, 60000);
+            checkDeadlines();
             checkPermissionStatus();
         }
 
         function saveData() {
-            localStorage.setItem('orbitAppData_v2', JSON.stringify(appData));
-            renderDashboard();
+            localStorage.setItem('orbitAppData_v3', JSON.stringify(appData));
+            renderDashboard(); 
         }
 
-        // --- Backup System ---
-        function downloadBackup() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
-            const downloadAnchorNode = document.createElement('a');
-            const date = new Date().toISOString().split('T')[0];
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", `orbit_backup_${date}.json`);
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        }
-
-        function loadBackup(input) {
-            const file = input.files[0];
-            if (!file) return;
+        function setupDatePickerListener() {
+            const picker = document.getElementById('task-date-picker');
+            const label = document.getElementById('custom-date-label');
             
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (confirm("Esto reemplazará tus tareas actuales con las del archivo. ¿Continuar?")) {
-                        appData = data;
-                        saveData();
-                        renderDashboard();
-                        if(!document.getElementById('task-modal').classList.contains('hidden')) {
-                            renderTasks();
-                        }
-                        alert("Datos restaurados con éxito.");
-                    }
-                } catch (err) {
-                    alert("Error al leer el archivo. Asegúrate de que sea un backup válido de Orbit.");
-                }
-            };
-            reader.readAsText(file);
-            input.value = ''; // Reset input
-        }
-
-        // --- Notification Logic ---
-        function requestNotificationPermission() {
-            if (!("Notification" in window)) {
-                alert("Tu navegador no soporta notificaciones.");
-            } else if (Notification.permission !== "denied") {
-                Notification.requestPermission().then(permission => {
-                    checkPermissionStatus();
-                    if (permission === "granted") {
-                        new Notification("Orbit", { body: "Notificaciones activadas exitosamente." });
-                    }
-                });
-            }
-        }
-
-        function checkPermissionStatus() {
-            const btn = document.getElementById('notify-btn');
-            if(Notification.permission === 'granted') {
-                btn.textContent = "Alertas activas";
-                btn.classList.remove('text-accent');
-                btn.classList.add('text-green-600');
-            }
-        }
-
-        function checkDeadlines() {
-            if (Notification.permission !== "granted") return;
-
-            const now = new Date();
-            
-            Object.values(appData.tasks).flat().forEach(task => {
-                if (!task.done && task.dueDate && !task.notified) {
-                    const due = new Date(task.dueDate);
-                    const diffMs = due - now;
-                    const diffMins = Math.round(diffMs / 60000);
-
-                    // Notify if due in 15 mins or less (and in the future)
-                    if (diffMins <= 15 && diffMins > 0) {
-                        new Notification("Recordatorio Orbit", {
-                            body: `"${task.text}" vence en ${diffMins} minutos.`,
-                            icon: 'https://cdn-icons-png.flaticon.com/512/1062/1062605.png' // Generic placeholder icon
-                        });
-                        task.notified = true; // Prevent spam
-                        saveData();
-                    }
+            picker.addEventListener('change', function(e) {
+                if(this.value) {
+                    const date = new Date(this.value);
+                    label.textContent = date.toLocaleString('es-ES', { month: 'short', day: 'numeric', hour:'2-digit', minute:'2-digit' });
+                    label.classList.add('text-accent', 'font-bold');
+                } else {
+                    label.textContent = "Elegir...";
+                    label.classList.remove('text-accent', 'font-bold');
                 }
             });
         }
 
-        // --- Rendering Dashboard ---
+        function setQuickDate(type) {
+            const now = new Date();
+            let date = new Date();
+            const picker = document.getElementById('task-date-picker');
+            const label = document.getElementById('custom-date-label');
+
+            if (type === 'today_eve') {
+                date.setHours(18, 0, 0, 0);
+                if (date < now) date.setHours(21, 0, 0, 0); 
+            } else if (type === 'tomorrow_mor') {
+                date.setDate(date.getDate() + 1);
+                date.setHours(9, 0, 0, 0);
+            } else if (type === 'friday') {
+                const day = date.getDay();
+                const diff = 5 - day + (day >= 5 ? 7 : 0); 
+                date.setDate(date.getDate() + diff);
+                date.setHours(17, 0, 0, 0);
+            }
+
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            const isoString = `${year}-${month}-${day}T${hours}:${minutes}`;
+            picker.value = isoString;
+            
+            label.textContent = date.toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute:'2-digit' });
+            label.classList.add('text-accent', 'font-bold');
+        }
+
+        // --- Rendering Logic ---
+
         function renderDashboard() {
+            renderFocusSection();
+            renderCategoriesGrid();
+        }
+
+        function renderFocusSection() {
+            const section = document.getElementById('focus-section');
+            const grid = document.getElementById('focus-grid');
+            
+            let allTasks = [];
+            defaultCategories.forEach(cat => {
+                const tasks = appData.tasks[cat.id] || [];
+                tasks.forEach(t => {
+                    if (!t.done && t.dueDate) {
+                        allTasks.push({ ...t, categoryTitle: cat.title, categoryColor: cat.color, categoryId: cat.id });
+                    }
+                });
+            });
+
+            allTasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+            const topTasks = allTasks.slice(0, 3); 
+
+            if (topTasks.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            section.classList.remove('hidden');
+            grid.innerHTML = '';
+
+            topTasks.forEach(task => {
+                const date = new Date(task.dueDate);
+                const dateStr = date.toLocaleString('es-ES', { month: 'short', day: 'numeric', hour:'2-digit', minute:'2-digit' });
+                
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-xl shadow-sm border-l-4 border-rose-400 flex flex-col justify-between cursor-pointer hover:shadow-md transition-all active:scale-[0.98]';
+                card.onclick = () => openModal(task.categoryId);
+
+                card.innerHTML = `
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">${task.categoryTitle}</p>
+                        <p class="font-medium text-primary leading-tight line-clamp-2">${task.text}</p>
+                    </div>
+                    <div class="mt-3 flex items-center text-xs text-rose-500 font-bold">
+                        <i class="ph-fill ph-clock mr-1"></i> ${dateStr}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderCategoriesGrid() {
             const grid = document.getElementById('categories-grid');
             grid.innerHTML = '';
 
@@ -337,22 +352,19 @@
                 const completed = tasks.filter(t => t.done).length;
                 const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
                 
-                // Check for urgent tasks
                 const urgentCount = tasks.filter(t => {
                     if(t.done || !t.dueDate) return false;
                     const due = new Date(t.dueDate);
-                    const now = new Date();
-                    return due < now || (due - now) < 86400000; // Due within 24h
+                    return (due - new Date()) < 86400000; 
                 }).length;
 
                 const card = document.createElement('div');
-                card.className = `bg-white p-8 rounded-2xl shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer group border border-transparent hover:border-gray-100 fade-in relative overflow-hidden`;
+                card.className = `bg-white p-8 rounded-2xl shadow-soft hover:shadow-card transition-all duration-300 cursor-pointer group border border-transparent hover:border-gray-100 fade-in relative overflow-hidden active:scale-[0.99]`;
                 card.style.animationDelay = `${index * 50}ms`;
                 card.onclick = () => openModal(cat.id);
 
-                // Urgent Indicator
                 const urgentBadge = urgentCount > 0 
-                    ? `<div class="absolute top-4 right-4 flex items-center gap-1 text-xs font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded-full"><i class="ph-fill ph-warning"></i> ${urgentCount} urgentes</div>` 
+                    ? `<div class="absolute top-4 right-4 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)]"></div>` 
                     : '';
 
                 card.innerHTML = `
@@ -366,9 +378,7 @@
                             <p class="text-xs text-gray-400 uppercase tracking-wide mt-1">Pendientes</p>
                         </div>
                     </div>
-                    
                     <h3 class="text-xl font-serif font-bold text-primary mb-2 group-hover:text-accent transition-colors">${cat.title}</h3>
-                    
                     <div class="w-full bg-gray-100 rounded-full h-1 mt-4 overflow-hidden">
                         <div class="bg-primary h-1 rounded-full transition-all duration-500" style="width: ${progress}%"></div>
                     </div>
@@ -377,180 +387,264 @@
             });
         }
 
-        // --- Modal Logic ---
+        // --- Task Management ---
+
         function openModal(categoryId) {
             currentCategoryId = categoryId;
             const category = defaultCategories.find(c => c.id === categoryId);
-            const modal = document.getElementById('task-modal');
-            const bg = document.getElementById('modal-bg');
-            const content = document.getElementById('modal-content');
             
             document.getElementById('modal-category-title').textContent = category.title;
-            document.getElementById('modal-category-title').className = `font-serif text-3xl font-bold mt-1 ${category.color}`;
+            document.getElementById('modal-category-title').className = `font-serif text-2xl md:text-3xl font-bold mt-1 ${category.color}`;
             
             renderTasks();
 
-            modal.classList.remove('hidden');
+            document.getElementById('task-modal').classList.remove('hidden');
             setTimeout(() => {
-                bg.classList.remove('opacity-0');
-                content.classList.remove('translate-x-full');
+                document.getElementById('modal-bg').classList.remove('opacity-0');
+                document.getElementById('modal-content').classList.remove('translate-x-full');
             }, 10);
         }
 
         function closeModal() {
             const modal = document.getElementById('task-modal');
-            const bg = document.getElementById('modal-bg');
-            const content = document.getElementById('modal-content');
-
-            bg.classList.add('opacity-0');
-            content.classList.add('translate-x-full');
-
+            document.getElementById('modal-bg').classList.add('opacity-0');
+            document.getElementById('modal-content').classList.add('translate-x-full');
+            
             setTimeout(() => {
                 modal.classList.add('hidden');
                 currentCategoryId = null;
-                // Clear input fields
-                document.getElementById('new-task-input').value = '';
-                document.getElementById('task-date-picker').value = '';
-                document.getElementById('selected-date-display').classList.add('hidden');
+                editingTaskId = null; 
+                resetForm();
             }, 300);
         }
 
-        // --- Task Logic ---
         function renderTasks() {
             const list = document.getElementById('tasks-list');
-            const emptyState = document.getElementById('empty-state');
-            let tasks = appData.tasks[currentCategoryId] || [];
+            const tasks = appData.tasks[currentCategoryId] || [];
             
             list.innerHTML = '';
 
-            // Stats
             const total = tasks.length;
             const completed = tasks.filter(t => t.done).length;
             const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
-            
             document.getElementById('modal-progress-text').textContent = `${percentage}%`;
             document.getElementById('modal-progress-bar').style.width = `${percentage}%`;
 
             if (tasks.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                emptyState.classList.add('hidden');
+                document.getElementById('empty-state').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('empty-state').classList.add('hidden');
+
+            tasks.sort((a, b) => {
+                if (a.done !== b.done) return a.done - b.done;
+                if (!a.done) {
+                    if (!a.dueDate) return 1;
+                    if (!b.dueDate) return -1;
+                    return new Date(a.dueDate) - new Date(b.dueDate);
+                }
+                return 0;
+            });
+
+            tasks.forEach(task => {
+                const item = document.createElement('div');
                 
-                // Sort: Not Done first, then by Due Date (Urgent first), then Done
-                tasks.sort((a, b) => {
-                    if (a.done !== b.done) return a.done - b.done;
-                    if (!a.done) {
-                        if (!a.dueDate && !b.dueDate) return 0;
-                        if (!a.dueDate) return 1;
-                        if (!b.dueDate) return -1;
-                        return new Date(a.dueDate) - new Date(b.dueDate);
-                    }
-                    return 0;
-                });
+                if (editingTaskId === task.id) {
+                    item.innerHTML = renderEditForm(task);
+                } else {
+                    item.innerHTML = renderTaskItem(task);
+                }
+                item.className = 'animate-[fadeIn_0.2s_ease-out]';
+                list.appendChild(item);
+            });
+        }
 
-                tasks.forEach((task) => {
-                    let dateBadge = '';
-                    let alertClass = '';
+        function renderTaskItem(task) {
+            let dateBadge = '';
+            let borderClass = 'border-gray-100';
 
-                    if (task.dueDate && !task.done) {
-                        const due = new Date(task.dueDate);
-                        const now = new Date();
-                        const diff = due - now;
-                        const isOverdue = diff < 0;
-                        const isSoon = diff < 86400000; // 24h
+            if (task.dueDate && !task.done) {
+                const due = new Date(task.dueDate);
+                const now = new Date();
+                const isOverdue = due < now;
+                const isSoon = (due - now) < 86400000;
+                const dateStr = due.toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
 
-                        const dateStr = due.toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-                        
-                        if (isOverdue) {
-                            dateBadge = `<span class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded ml-2">Venció: ${dateStr}</span>`;
-                            alertClass = 'border-l-4 border-l-red-500';
-                        } else if (isSoon) {
-                            dateBadge = `<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded ml-2">Hoy: ${dateStr}</span>`;
-                            alertClass = 'border-l-4 border-l-amber-400';
-                        } else {
-                            dateBadge = `<span class="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded ml-2">${dateStr}</span>`;
-                        }
-                    }
+                if (isOverdue) {
+                    dateBadge = `<span class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded ml-2">Venció: ${dateStr}</span>`;
+                    borderClass = 'border-l-4 border-l-red-500';
+                } else if (isSoon) {
+                    dateBadge = `<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded ml-2">Hoy: ${dateStr}</span>`;
+                    borderClass = 'border-l-4 border-l-amber-400';
+                } else {
+                    dateBadge = `<span class="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded ml-2">${dateStr}</span>`;
+                }
+            }
 
-                    const item = document.createElement('div');
-                    item.className = `group flex items-start bg-white border border-gray-100 p-4 rounded-xl hover:shadow-sm transition-all animate-[fadeIn_0.2s_ease-out] ${alertClass}`;
-                    
-                    item.innerHTML = `
-                        <label class="flex items-start flex-grow cursor-pointer mt-0.5">
-                            <input type="checkbox" 
-                                class="task-checkbox w-5 h-5 mt-0.5 rounded border-gray-300 text-primary focus:ring-accent transition-all cursor-pointer shrink-0"
-                                ${task.done ? 'checked' : ''} 
-                                onchange="toggleTask(${task.id})"
-                            >
-                            <div class="ml-4 flex flex-col">
-                                <span class="text-sm md:text-base text-primary font-medium transition-all select-none ${task.done ? 'line-through text-gray-400' : ''}">
-                                    ${task.text}
-                                </span>
-                                <div class="mt-1">${dateBadge}</div>
-                            </div>
-                        </label>
-                        <button onclick="deleteTask(${task.id})" class="ml-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-2">
+            // Mobile Fix: Buttons always visible (opacity-100), on Desktop only on hover (md:opacity-0)
+            return `
+                <div class="group flex items-start bg-white border ${borderClass} p-4 rounded-xl hover:shadow-sm transition-all">
+                    <label class="flex items-start flex-grow cursor-pointer mt-0.5">
+                        <input type="checkbox" class="task-checkbox w-5 h-5 mt-0.5 rounded border-gray-300 text-primary focus:ring-accent cursor-pointer shrink-0" ${task.done ? 'checked' : ''} onchange="toggleTask(${task.id})">
+                        <div class="ml-4 flex flex-col">
+                            <span class="text-sm md:text-base text-primary font-medium transition-all select-none ${task.done ? 'line-through text-gray-400' : ''}">${task.text}</span>
+                            <div class="mt-1">${dateBadge}</div>
+                        </div>
+                    </label>
+                    <div class="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <button onclick="startEdit(${task.id})" class="p-2 text-gray-300 hover:text-accent transition-colors active:text-accent" title="Editar">
+                            <i class="ph ph-pencil-simple text-lg"></i>
+                        </button>
+                        <button onclick="deleteTask(${task.id})" class="p-2 text-gray-300 hover:text-red-500 transition-colors active:text-red-500" title="Eliminar">
                             <i class="ph ph-trash text-lg"></i>
                         </button>
-                    `;
-                    list.appendChild(item);
-                });
-            }
+                    </div>
+                </div>
+            `;
         }
+
+        function renderEditForm(task) {
+            return `
+                <div class="bg-gray-50 p-4 rounded-xl border border-accent/30 shadow-inner">
+                    <input type="text" id="edit-input-${task.id}" value="${task.text}" class="w-full bg-white border border-gray-200 rounded-lg p-2 text-base mb-2 focus:ring-1 focus:ring-accent outline-none">
+                    <div class="flex items-center gap-2">
+                        <input type="datetime-local" id="edit-date-${task.id}" value="${task.dueDate || ''}" class="text-xs bg-white border border-gray-200 rounded px-2 py-1 w-full md:w-auto">
+                        <div class="ml-auto flex gap-2 shrink-0">
+                            <button onclick="cancelEdit()" class="px-3 py-1 text-xs font-medium text-gray-500 hover:text-gray-700">Cancelar</button>
+                            <button onclick="saveEdit(${task.id})" class="px-3 py-1 text-xs font-medium bg-primary text-white rounded hover:bg-gray-800">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Actions ---
 
         function addTask(e) {
             e.preventDefault();
             const input = document.getElementById('new-task-input');
-            const dateInput = document.getElementById('task-date-picker');
+            const datePicker = document.getElementById('task-date-picker');
             const text = input.value.trim();
             
             if (!text) return;
+            if (!appData.tasks[currentCategoryId]) appData.tasks[currentCategoryId] = [];
 
-            if (!appData.tasks[currentCategoryId]) {
-                appData.tasks[currentCategoryId] = [];
-            }
-
-            const newTask = {
+            appData.tasks[currentCategoryId].push({
                 id: Date.now(),
                 text: text,
                 done: false,
-                dueDate: dateInput.value ? dateInput.value : null,
+                dueDate: datePicker.value || null,
                 notified: false
-            };
+            });
 
-            appData.tasks[currentCategoryId].push(newTask);
-            
-            // Reset form
-            input.value = '';
-            dateInput.value = '';
-            document.getElementById('selected-date-display').classList.add('hidden');
-            
+            resetForm();
             saveData();
             renderTasks();
         }
 
+        function startEdit(taskId) {
+            editingTaskId = taskId;
+            renderTasks();
+        }
+
+        function cancelEdit() {
+            editingTaskId = null;
+            renderTasks();
+        }
+
+        function saveEdit(taskId) {
+            const newText = document.getElementById(`edit-input-${taskId}`).value.trim();
+            const newDate = document.getElementById(`edit-date-${taskId}`).value;
+            
+            if(newText) {
+                const task = appData.tasks[currentCategoryId].find(t => t.id === taskId);
+                if(task) {
+                    task.text = newText;
+                    task.dueDate = newDate || null;
+                    task.notified = false; 
+                    saveData();
+                }
+            }
+            editingTaskId = null;
+            renderTasks();
+        }
+
+        function resetForm() {
+            document.getElementById('new-task-input').value = '';
+            document.getElementById('task-date-picker').value = '';
+            const label = document.getElementById('custom-date-label');
+            label.textContent = "Elegir...";
+            label.classList.remove('text-accent', 'font-bold');
+        }
+
         function toggleTask(taskId) {
             const tasks = appData.tasks[currentCategoryId];
-            const taskIndex = tasks.findIndex(t => t.id === taskId);
-            
-            if (taskIndex > -1) {
-                tasks[taskIndex].done = !tasks[taskIndex].done;
-                setTimeout(() => {
-                    saveData();
-                    renderTasks();
-                }, 200);
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.done = !task.done;
+                setTimeout(() => { saveData(); renderTasks(); }, 200);
             }
         }
 
         function deleteTask(taskId) {
-            if(confirm('¿Eliminar esta tarea?')) {
+            if(confirm('¿Borrar tarea?')) {
                 appData.tasks[currentCategoryId] = appData.tasks[currentCategoryId].filter(t => t.id !== taskId);
                 saveData();
                 renderTasks();
             }
         }
 
-        // Start
+        // --- Utils ---
+        function downloadBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+            const node = document.createElement('a');
+            node.href = dataStr;
+            node.download = `orbit_backup_${new Date().toISOString().split('T')[0]}.json`;
+            node.click();
+        }
+
+        function loadBackup(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    appData = JSON.parse(e.target.result);
+                    saveData();
+                    alert("Restaurado con éxito.");
+                    location.reload();
+                } catch(err) { alert("Archivo inválido"); }
+            };
+            reader.readAsText(file);
+        }
+
+        function requestNotificationPermission() {
+            if (Notification.permission !== "denied") Notification.requestPermission().then(checkPermissionStatus);
+        }
+
+        function checkPermissionStatus() {
+            const btn = document.getElementById('notify-btn');
+            if(Notification.permission === 'granted') {
+                btn.textContent = "Alertas activas";
+                btn.classList.replace('text-accent', 'text-success');
+            }
+        }
+
+        function checkDeadlines() {
+            if (Notification.permission !== "granted") return;
+            const now = new Date();
+            Object.values(appData.tasks).flat().forEach(task => {
+                if (!task.done && task.dueDate && !task.notified) {
+                    const diffMins = Math.round((new Date(task.dueDate) - now) / 60000);
+                    if (diffMins <= 15 && diffMins > 0) {
+                        new Notification("Orbit", { body: `"${task.text}" vence pronto.` });
+                        task.notified = true;
+                        saveData();
+                    }
+                }
+            });
+        }
+
         init();
     </script>
 </body>
