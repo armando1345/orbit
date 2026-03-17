@@ -446,20 +446,6 @@ h1,h2,h3{font-family:'Playfair Display',serif}
       <input class="quick-input" id="quick-input" placeholder="Agregar tarea rápida..." onkeydown="if(event.key==='Enter')quickAdd()">
       <button class="quick-add-btn" onclick="quickAdd()">AGREGAR</button>
     </div>
-    <div class="date-chips" id="qdate-chips">
-      <button class="dchip" onclick="qSetDate('today',this)">HOY TARDE</button>
-      <button class="dchip" onclick="qSetDate('tomorrow',this)">MAÑANA</button>
-      <button class="dchip" onclick="qSetDate('friday',this)">VIERNES</button>
-      <div style="position:relative;flex-shrink:0">
-        <input type="datetime-local" id="q-picker" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2;width:100%;height:100%" onchange="qOnDatePick(this)">
-        <button class="dchip" id="q-custom-chip">📅 <span id="q-custom-lbl">ELEGIR</span></button>
-      </div>
-    </div>
-    <div class="prio-row">
-      <button class="pchip" id="qpc-alta" onclick="qSelPrio('alta')">🔴 ALTA</button>
-      <button class="pchip sel-media" id="qpc-media" onclick="qSelPrio('media')">🟡 MEDIA</button>
-      <button class="pchip" id="qpc-baja" onclick="qSelPrio('baja')">⚫ BAJA</button>
-    </div>
   </div>
 </div>
 
@@ -593,7 +579,7 @@ function renderHome(){
     const ts=data.tasks[c.id]||[], t=ts.length, d=ts.filter(x=>x.done).length;
     const pct2=t?Math.round(d/t*100):0;
     const urg=ts.filter(x=>!x.done&&x.date&&['overdue','today'].includes(dueStatus(x.date,x.done))).length;
-    h+=`<div class="cat-card" onclick="openPanel(${c.id})">
+    h+=`<div class="cat-card" data-id="${c.id}" onclick="openPanel(${c.id})">
       ${urg?'<div class="urgent-dot"></div>':''}
       <div class="cat-dot" style="background:${c.color}"></div>
       <div class="cat-info">
@@ -608,6 +594,7 @@ function renderHome(){
     </div>`;
   });
   ch.innerHTML = h+'</div>';
+  initDrag(document.getElementById('cats-home'));
 }
 
 function renderCatsManage(){
@@ -782,17 +769,12 @@ function quickAdd(){
   const inp=document.getElementById('quick-input'),txt=inp.value.trim();
   if(!txt) return;
   if(!data.tasks[panelCatId]) data.tasks[panelCatId]=[];
-  data.tasks[panelCatId].push({id:Date.now(),text:txt,done:false,prio:qPrio,date:qDate||null});
-  resetQForm(); save(); renderPanel();
+  data.tasks[panelCatId].push({id:Date.now(),text:txt,done:false,prio:'media',date:null});
+  inp.value=''; save(); renderPanel();
 }
 function resetQForm(){
   const inp=document.getElementById('quick-input');
   if(inp) inp.value='';
-  qDate=''; qPrio='media';
-  const p=document.getElementById('q-picker');if(p)p.value='';
-  document.querySelectorAll('.dchip').forEach(c=>c.classList.remove('sel'));
-  document.getElementById('q-custom-lbl').textContent='ELEGIR';
-  qSelPrio('media');
 }
 
 // ──────────────────────────────────────────
@@ -996,6 +978,83 @@ function wizNext(){
 }
 function wizBack(){
   if(wizStep>0){wizStep--;renderWiz();}
+}
+
+// ──────────────────────────────────────────
+// DRAG REORDER
+// ──────────────────────────────────────────
+let drag={el:null,ghost:null,startY:0,startIdx:0,curIdx:0,items:[]};
+
+function initDrag(container){
+  // cleanup old listeners by replacing element
+  const cards=[...container.querySelectorAll('.cat-card[data-id]')];
+  cards.forEach((card,i)=>{
+    card.addEventListener('touchstart',e=>dragStart(e,i,cards,container),{passive:true});
+  });
+}
+
+function dragStart(e,idx,cards,container){
+  const touch=e.touches[0];
+  let holdTimer=setTimeout(()=>{
+    drag.items=cards.map(c=>parseInt(c.dataset.id));
+    drag.startIdx=idx; drag.curIdx=idx;
+    drag.el=cards[idx];
+    // ghost
+    const rect=drag.el.getBoundingClientRect();
+    drag.ghost=drag.el.cloneNode(true);
+    drag.ghost.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;
+      opacity:.85;z-index:50;pointer-events:none;border:2px solid #000;background:#f2f2f0;box-shadow:4px 4px 0 #888;transition:none`;
+    document.body.appendChild(drag.ghost);
+    drag.el.style.opacity='0.3';
+    drag.startY=touch.clientY-rect.top;
+    document.addEventListener('touchmove',dragMove,{passive:false});
+    document.addEventListener('touchend',dragEnd);
+  },400);
+
+  const cancel=()=>{clearTimeout(holdTimer);e.target.removeEventListener('touchend',cancel);e.target.removeEventListener('touchmove',cancel);};
+  e.target.addEventListener('touchend',cancel,{once:true});
+  e.target.addEventListener('touchmove',cancel,{once:true});
+}
+
+function dragMove(e){
+  if(!drag.ghost) return;
+  e.preventDefault();
+  const touch=e.touches[0];
+  drag.ghost.style.top=(touch.clientY-drag.startY)+'px';
+  // find which slot
+  const mid=touch.clientY;
+  const cards=[...document.querySelectorAll('.cat-card[data-id]')];
+  let newIdx=drag.curIdx;
+  cards.forEach((c,i)=>{
+    const r=c.getBoundingClientRect();
+    if(mid>r.top&&mid<r.bottom) newIdx=i;
+  });
+  if(newIdx!==drag.curIdx){
+    // reorder array
+    const arr=drag.items;
+    const moved=arr.splice(drag.curIdx,1)[0];
+    arr.splice(newIdx,0,moved);
+    drag.curIdx=newIdx;
+    // reorder data.cats
+    data.cats.sort((a,b)=>arr.indexOf(a.id)-arr.indexOf(b.id));
+    renderHome(); renderCatsManage();
+    // re-init drag with new order
+    const newCards=[...document.querySelectorAll('.cat-card[data-id]')];
+    newCards.forEach((card,i)=>{
+      if(parseInt(card.dataset.id)===drag.items[drag.curIdx]) card.style.opacity='0.3';
+      else card.style.opacity='1';
+    });
+  }
+}
+
+function dragEnd(){
+  if(!drag.ghost) return;
+  drag.ghost.remove(); drag.ghost=null;
+  if(drag.el) drag.el.style.opacity='1';
+  document.removeEventListener('touchmove',dragMove);
+  document.removeEventListener('touchend',dragEnd);
+  save();
+  drag={el:null,ghost:null,startY:0,startIdx:0,curIdx:0,items:[]};
 }
 
 // ──────────────────────────────────────────
