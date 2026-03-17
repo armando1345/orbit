@@ -983,78 +983,85 @@ function wizBack(){
 // ──────────────────────────────────────────
 // DRAG REORDER
 // ──────────────────────────────────────────
-let drag={el:null,ghost:null,startY:0,startIdx:0,curIdx:0,items:[]};
+let drag={active:false,el:null,ghost:null,offsetY:0,list:null,placeholder:null};
 
 function initDrag(container){
-  // cleanup old listeners by replacing element
-  const cards=[...container.querySelectorAll('.cat-card[data-id]')];
-  cards.forEach((card,i)=>{
-    card.addEventListener('touchstart',e=>dragStart(e,i,cards,container),{passive:true});
+  const list=container.querySelector('.cat-list');
+  if(!list) return;
+  [...list.querySelectorAll('.cat-card[data-id]')].forEach(card=>{
+    card.addEventListener('touchstart',e=>onTouchStart(e,card,list),{passive:true});
   });
 }
 
-function dragStart(e,idx,cards,container){
+function onTouchStart(e,card,list){
   const touch=e.touches[0];
-  let holdTimer=setTimeout(()=>{
-    drag.items=cards.map(c=>parseInt(c.dataset.id));
-    drag.startIdx=idx; drag.curIdx=idx;
-    drag.el=cards[idx];
-    // ghost
-    const rect=drag.el.getBoundingClientRect();
-    drag.ghost=drag.el.cloneNode(true);
-    drag.ghost.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;
-      opacity:.85;z-index:50;pointer-events:none;border:2px solid #000;background:#f2f2f0;box-shadow:4px 4px 0 #888;transition:none`;
-    document.body.appendChild(drag.ghost);
-    drag.el.style.opacity='0.3';
-    drag.startY=touch.clientY-rect.top;
-    document.addEventListener('touchmove',dragMove,{passive:false});
-    document.addEventListener('touchend',dragEnd);
-  },400);
+  const holdTimer=setTimeout(()=>{
+    drag.active=true;
+    drag.el=card;
+    drag.list=list;
+    const rect=card.getBoundingClientRect();
+    drag.offsetY=touch.clientY-rect.top;
 
-  const cancel=()=>{clearTimeout(holdTimer);e.target.removeEventListener('touchend',cancel);e.target.removeEventListener('touchmove',cancel);};
-  e.target.addEventListener('touchend',cancel,{once:true});
-  e.target.addEventListener('touchmove',cancel,{once:true});
+    // placeholder keeps the space
+    drag.placeholder=document.createElement('div');
+    drag.placeholder.style.cssText=`height:${rect.height}px;border:2px dashed #ccc;margin-bottom:0;box-sizing:border-box;`;
+    card.parentNode.insertBefore(drag.placeholder,card.nextSibling);
+
+    // ghost follows finger
+    drag.ghost=card.cloneNode(true);
+    drag.ghost.style.cssText=`position:fixed;left:${rect.left}px;top:${rect.top}px;
+      width:${rect.width}px;z-index:50;pointer-events:none;
+      box-shadow:6px 6px 0 #888;border:2px solid #000;background:#f2f2f0;opacity:.92;`;
+    document.body.appendChild(drag.ghost);
+
+    card.style.display='none';
+
+    document.addEventListener('touchmove',onTouchMove,{passive:false});
+    document.addEventListener('touchend',onTouchEnd,{once:true});
+  },380);
+
+  // cancel if finger moves before hold completes
+  const cancelHold=()=>clearTimeout(holdTimer);
+  card.addEventListener('touchend',cancelHold,{once:true});
+  card.addEventListener('touchmove',cancelHold,{once:true});
 }
 
-function dragMove(e){
-  if(!drag.ghost) return;
+function onTouchMove(e){
+  if(!drag.active) return;
   e.preventDefault();
   const touch=e.touches[0];
-  drag.ghost.style.top=(touch.clientY-drag.startY)+'px';
-  // find which slot
-  const mid=touch.clientY;
-  const cards=[...document.querySelectorAll('.cat-card[data-id]')];
-  let newIdx=drag.curIdx;
-  cards.forEach((c,i)=>{
-    const r=c.getBoundingClientRect();
-    if(mid>r.top&&mid<r.bottom) newIdx=i;
-  });
-  if(newIdx!==drag.curIdx){
-    // reorder array
-    const arr=drag.items;
-    const moved=arr.splice(drag.curIdx,1)[0];
-    arr.splice(newIdx,0,moved);
-    drag.curIdx=newIdx;
-    // reorder data.cats
-    data.cats.sort((a,b)=>arr.indexOf(a.id)-arr.indexOf(b.id));
-    renderHome(); renderCatsManage();
-    // re-init drag with new order
-    const newCards=[...document.querySelectorAll('.cat-card[data-id]')];
-    newCards.forEach((card,i)=>{
-      if(parseInt(card.dataset.id)===drag.items[drag.curIdx]) card.style.opacity='0.3';
-      else card.style.opacity='1';
-    });
+  const ghostTop=touch.clientY-drag.offsetY;
+  drag.ghost.style.top=ghostTop+'px';
+
+  // find card under finger center
+  drag.ghost.style.display='none';
+  const midY=touch.clientY;
+  const el=document.elementFromPoint(touch.clientX,midY);
+  drag.ghost.style.display='';
+
+  const target=el&&el.closest('.cat-card[data-id]');
+  if(target&&target!==drag.placeholder){
+    const rect=target.getBoundingClientRect();
+    const insertAfter=midY>rect.top+rect.height/2;
+    if(insertAfter) drag.list.insertBefore(drag.placeholder,target.nextSibling);
+    else drag.list.insertBefore(drag.placeholder,target);
   }
 }
 
-function dragEnd(){
-  if(!drag.ghost) return;
-  drag.ghost.remove(); drag.ghost=null;
-  if(drag.el) drag.el.style.opacity='1';
-  document.removeEventListener('touchmove',dragMove);
-  document.removeEventListener('touchend',dragEnd);
+function onTouchEnd(){
+  if(!drag.active) return;
+  drag.ghost.remove();
+  drag.el.style.display='';
+  drag.list.insertBefore(drag.el,drag.placeholder);
+  drag.placeholder.remove();
+  document.removeEventListener('touchmove',onTouchMove);
+
+  // sync data.cats order from DOM
+  const newOrder=[...drag.list.querySelectorAll('.cat-card[data-id]')]
+    .map(c=>parseInt(c.dataset.id));
+  data.cats.sort((a,b)=>newOrder.indexOf(a.id)-newOrder.indexOf(b.id));
   save();
-  drag={el:null,ghost:null,startY:0,startIdx:0,curIdx:0,items:[]};
+  drag={active:false,el:null,ghost:null,offsetY:0,list:null,placeholder:null};
 }
 
 // ──────────────────────────────────────────
