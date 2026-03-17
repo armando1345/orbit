@@ -1,0 +1,16 @@
+{
+  "name": "Orbit | Armandefica",
+  "short_name": "Orbit",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0a1e",
+  "theme_color": "#0f0a1e",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/dul66qlpq/image/upload/v1763503975/Orbit_favicon_qhk2kg.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
